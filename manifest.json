@@ -1,6 +1,6 @@
 {
   "name": "GPA & CGPA Calculator — BSAI 4th (A)",
-  "short_name": "GPA Calculator",
+  "short_name": "GPA ",
   "description": "Calculate your GPA and CGPA easily. By BSAI 4th (A).",
   "start_url": "/GPAcalculator/",
   "scope": "/GPAcalculator/",
