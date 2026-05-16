@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>GPA & CGPA Calculator — BSAI (A)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4f8ef7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GPA Calc">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0a0e1a;
+  --surface:   #111827;
+  --card:      #1a2235;
+  --border:    #2a3550;
+  --gold:      #f5c842;
+  --gold2:     #e8a020;
+  --blue:      #4f8ef7;
+  --text:      #e8eaf6;
+  --muted:     #8899bb;
+  --success:   #43d97b;
+  --danger:    #ff5c5c;
+  --radius:    16px;
+  --shadow:    0 8px 40px rgba(0,0,0,0.5);
+  --transition: 0.35s cubic-bezier(.4,0,.2,1);
+}
+[data-theme="light"] {
+  --bg:      #f0f3fb;
+  --surface: #ffffff;
+  --card:    #f7f9ff;
+  --border:  #dde3f0;
+  --text:    #1a2235;
+  --muted:   #6677aa;
+  --shadow:  0 8px 40px rgba(79,142,247,0.10);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background var(--transition), color var(--transition);
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND MESH ── */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 10%, rgba(79,142,247,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 80% 90%, rgba(245,200,66,0.08) 0%, transparent 70%);
+  transition: opacity var(--transition);
+}
+[data-theme="light"] body::before { opacity:0.5; }
+
+.wrapper {
+  position: relative; z-index: 1;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 28px 16px 60px;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 32px;
+  animation: fadeDown 0.6s ease both;
+}
+.brand { display:flex; flex-direction:column; }
+.brand-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  font-weight: 900;
+  background: linear-gradient(90deg, var(--gold), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+.brand-sub {
+  font-size: 0.72rem; font-weight: 500; color: var(--muted);
+  letter-spacing: 2px; text-transform: uppercase; margin-top: 3px;
+}
+
+/* ── THEME TOGGLE ── */
+.theme-btn {
+  width: 52px; height: 28px;
+  background: var(--border); border: none; border-radius: 50px;
+  cursor: pointer; position: relative; transition: background var(--transition);
+  flex-shrink: 0;
+}
+.theme-btn::after {
+  content: '';
+  position: absolute; top: 4px; left: 4px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--gold);
+  transition: transform var(--transition), background var(--transition);
+  box-shadow: 0 2px 8px rgba(245,200,66,0.4);
+}
+[data-theme="light"] .theme-btn::after {
+  transform: translateX(24px);
+  background: var(--blue);
+  box-shadow: 0 2px 8px rgba(79,142,247,0.4);
+}
+.theme-icon {
+  position:absolute; top:50%; transform:translateY(-50%);
+  font-size: 10px; pointer-events:none; transition: opacity 0.2s;
+}
+.theme-icon.moon { left: 6px; }
+.theme-icon.sun  { right: 5px; opacity: 0; }
+[data-theme="light"] .theme-icon.moon { opacity:0; }
+[data-theme="light"] .theme-icon.sun  { opacity:1; }
+
+/* ── TAB SWITCHER ── */
+.tab-bar {
+  display: flex; background: var(--card);
+  border: 1px solid var(--border); border-radius: 50px;
+  padding: 5px; margin-bottom: 30px; gap: 4px;
+  animation: fadeDown 0.7s ease both;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.15);
+}
+.tab-btn {
+  flex: 1; padding: 11px 10px; border: none; border-radius: 50px;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem; font-weight: 600; letter-spacing: 0.3px;
+  background: transparent; color: var(--muted);
+  transition: all var(--transition);
+  position: relative; overflow: hidden;
+}
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--blue), #7b6fef);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(79,142,247,0.4);
+}
+.tab-btn:not(.active):hover { color: var(--text); background: var(--border); }
+
+/* ── CARD ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  box-shadow: var(--shadow);
+  transition: background var(--transition), border-color var(--transition);
+  animation: slideUp 0.5s ease both;
+}
+
+/* ── PAGE VIEWS ── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── SECTION TITLE ── */
+.sec-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.45rem; font-weight: 700;
+  margin-bottom: 4px; color: var(--text);
+}
+.sec-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 22px; }
+
+/* ── INPUTS ── */
+.field-group { margin-bottom: 16px; }
+.field-group label {
+  display: block; font-size: 0.78rem; font-weight: 600;
+  color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.field-group input {
+  width: 100%; padding: 12px 16px;
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: 10px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+  outline: none; transition: all 0.2s;
+}
+.field-group input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(79,142,247,0.15);
+  background: var(--surface);
+}
+.field-group input::placeholder { color: var(--muted); opacity:0.6; }
+
+/* ── BUTTONS ── */
+.btn {
+  width: 100%; padding: 13px;
+  border: none; border-radius: 10px;
+  font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+  position: relative; overflow: hidden;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue) 0%, #7b6fef 100%);
+  color: #fff; box-shadow: 0 4px 20px rgba(79,142,247,0.3);
+  margin-bottom: 12px;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(79,142,247,0.45);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-calc {
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold2) 100%);
+  color: #1a1400; box-shadow: 0 4px 20px rgba(245,200,66,0.25);
+}
+.btn-calc:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(245,200,66,0.45);
+}
+
+/* ── RIPPLE ── */
+.btn::after {
+  content:''; position:absolute; border-radius:50%;
+  background: rgba(255,255,255,0.25);
+  width: 100px; height: 100px;
+  top:50%; left:50%; transform:translate(-50%,-50%) scale(0);
+  transition: transform 0.4s, opacity 0.4s;
+  opacity: 0;
+}
+.btn:active::after { transform:translate(-50%,-50%) scale(3); opacity:0; transition:0s; }
+
+/* ── SUBJECT CARDS ── */
+.subjects-container { margin: 20px 0; display: flex; flex-direction: column; gap: 12px; }
+.subject-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  animation: slideUp 0.35s ease both;
+  transition: border-color 0.2s;
+}
+.subject-card:hover { border-color: var(--blue); }
+.subject-card .subject-num {
+  grid-column: 1/-1; font-size: 0.72rem; font-weight: 700;
+  color: var(--blue); letter-spacing: 1.5px; text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+/* ── SEMESTER CARDS ── */
+.semester-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+  animation: slideUp 0.35s ease both;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+.semester-card:hover { border-color: var(--gold); }
+.semester-card .sem-num {
+  font-size: 0.72rem; font-weight: 700;
+  color: var(--gold); letter-spacing: 1.5px; text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.sem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── RESULT ── */
+.result-box {
+  margin-top: 20px; padding: 22px;
+  border-radius: 14px; text-align: center;
+  background: linear-gradient(135deg, rgba(79,142,247,0.12), rgba(123,111,239,0.12));
+  border: 1px solid rgba(79,142,247,0.25);
+  display: none; animation: popIn 0.5s cubic-bezier(.34,1.56,.64,1) both;
+}
+.result-box.show { display: block; }
+.result-label { font-size: 0.75rem; color: var(--muted); letter-spacing: 1.5px; text-transform:uppercase; margin-bottom: 8px; }
+.result-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 3.2rem; font-weight: 900; line-height: 1;
+  background: linear-gradient(90deg, var(--gold), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.result-grade {
+  font-size: 1rem; font-weight: 600; margin-top: 8px; color: var(--text);
+}
+.result-msg {
+  font-size: 0.82rem; color: var(--muted); margin-top: 6px; font-style: italic;
+}
+
+/* ── CGPA RESULT ── */
+.result-box.cgpa-mode {
+  background: linear-gradient(135deg, rgba(245,200,66,0.10), rgba(232,160,32,0.10));
+  border: 1px solid rgba(245,200,66,0.25);
+}
+
+/* ── DIVIDER ── */
+.divider {
+  height: 1px; background: var(--border); margin: 20px 0;
+}
+
+/* ── FOOTER ── */
+footer {
+  text-align: center; margin-top: 36px;
+  font-size: 0.75rem; color: var(--muted); letter-spacing: 0.5px;
+  animation: fadeDown 1s ease both;
+}
+footer span { color: var(--gold); font-weight: 600; }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeDown {
+  from { opacity:0; transform:translateY(-18px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity:0; transform:translateY(22px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes popIn {
+  from { opacity:0; transform:scale(0.88); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+/* ── ANIMATED NUMBER COUNTER ── */
+.counting { display:inline-block; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* ── MOBILE ── */
+@media (max-width: 480px) {
+  .card { padding: 20px 16px; }
+  .subject-card { grid-template-columns: 1fr; }
+  .sem-grid { grid-template-columns: 1fr; }
+  .result-value { font-size: 2.6rem; }
+}
+
+/* ══ INSTALL BUTTON ══ */
+.inst-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 15px; border: none; border-radius: 22px;
+  background: linear-gradient(135deg, #4f8ef7, #7b6fef);
+  color: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(79,142,247,0.4);
+  transition: all 0.22s; white-space: nowrap;
+  position: relative; overflow: hidden;
+}
+.inst-btn::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);
+  transform:translateX(-100%); animation:ibShimmer 2.5s ease-in-out infinite;
+}
+@keyframes ibShimmer { 50%,100%{transform:translateX(120%);} }
+.inst-btn:hover { transform:translateY(-2px); box-shadow:0 7px 22px rgba(79,142,247,0.55); }
+.inst-btn:active { transform:scale(0.95); }
+.inst-btn .ib-arrow { animation:ibBounce 1.8s ease-in-out infinite; display:inline-block; }
+@keyframes ibBounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(3px);} }
+.inst-btn.done { background:linear-gradient(135deg,#1a5c38,#22874f); animation:none; }
+.inst-btn.done::after { display:none; }
+.inst-btn.done .ib-arrow { animation:none; }
+
+/* ══ INSTALL MODAL ══ */
+.im-overlay {
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,0.8); backdrop-filter:blur(8px);
+  align-items:flex-end; justify-content:center;
+}
+.im-overlay.open { display:flex; animation:fadeIn .25s ease; }
+@keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+.im-box {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:26px 26px 0 0; width:100%; max-width:520px;
+  padding:26px 20px 44px; max-height:88vh; overflow-y:auto;
+  animation:slideUp2 .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes slideUp2 { from{transform:translateY(100%);} to{transform:translateY(0);} }
+
+.im-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+.im-title { font-family:'Playfair Display',serif; font-size:1.2rem; font-weight:700; }
+.im-x { width:30px; height:30px; border-radius:50%; border:1px solid var(--border);
+  background:var(--card); color:var(--muted); font-size:0.95rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all .2s; }
+.im-x:hover { background:var(--border); color:var(--text); }
+.im-sub { font-size:0.78rem; color:var(--muted); margin-bottom:20px; line-height:1.5; }
+
+/* tabs */
+.im-tabs { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:18px; }
+.im-tab {
+  padding:7px 13px; border-radius:18px; border:1.5px solid var(--border);
+  background:transparent; color:var(--muted); cursor:pointer;
+  font-family:'DM Sans',sans-serif; font-size:0.75rem; font-weight:600; transition:all .2s;
+}
+.im-tab.on { background:linear-gradient(135deg,#4f8ef7,#7b6fef); border-color:transparent; color:#fff;
+  box-shadow:0 3px 10px rgba(79,142,247,0.4); }
+
+/* steps */
+.im-steps { display:none; }
+.im-steps.on { display:block; }
+.im-step {
+  display:flex; gap:12px; align-items:flex-start;
+  padding:13px; border-radius:13px; margin-bottom:9px;
+  background:var(--card); border:1px solid var(--border);
+  animation:slideUp .3s ease both;
+}
+.im-step:nth-child(2){animation-delay:.05s;}
+.im-step:nth-child(3){animation-delay:.1s;}
+.im-step:nth-child(4){animation-delay:.15s;}
+.im-step:nth-child(5){animation-delay:.2s;}
+.im-num {
+  width:28px; height:28px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg,#4f8ef7,#7b6fef); color:#fff;
+  font-size:0.78rem; font-weight:700; display:flex; align-items:center; justify-content:center;
+}
+.im-step-txt { font-size:0.84rem; line-height:1.6; color:var(--text); }
+.im-step-txt b { color:var(--gold); }
+.im-step-txt em { color:var(--blue); font-style:normal;
+  background:var(--card); border:1px solid var(--border);
+  padding:1px 6px; border-radius:5px; font-size:0.8rem; }
+
+/* note */
+.im-note {
+  background:linear-gradient(135deg,rgba(79,142,247,.08),rgba(123,111,239,.08));
+  border:1px solid rgba(79,142,247,.2); border-radius:12px;
+  padding:11px 14px; margin-top:14px; font-size:0.76rem; color:var(--muted); line-height:1.6;
+}
+.im-note b { color:var(--success); }
+
+/* one-tap install row */
+.im-native {
+  display:none; margin-top:14px;
+  background:linear-gradient(135deg,rgba(79,142,247,.1),rgba(123,111,239,.1));
+  border:1px solid rgba(79,142,247,.3); border-radius:14px;
+  padding:14px 16px; align-items:center; justify-content:space-between; gap:12px;
+}
+.im-native.show { display:flex; animation:slideUp .35s ease both; }
+.im-native-txt { font-size:0.83rem; color:var(--text); }
+.im-native-txt small { color:var(--muted); font-size:0.71rem; display:block; margin-top:2px; }
+.im-native-btn {
+  padding:9px 17px; border:none; border-radius:20px; flex-shrink:0;
+  background:linear-gradient(135deg,#4f8ef7,#7b6fef); color:#fff;
+  font-family:'DM Sans',sans-serif; font-size:0.8rem; font-weight:700; cursor:pointer;
+  box-shadow:0 3px 12px rgba(79,142,247,.4); transition:all .2s;
+}
+.im-native-btn:hover { transform:translateY(-1px); }
+
+/* toast */
+.im-toast {
+  position:fixed; bottom:28px; left:50%; z-index:99999;
+  transform:translateX(-50%) translateY(70px);
+  background:linear-gradient(135deg,#1a3a2a,#1e5238);
+  border:1px solid #43d97b; color:#43d97b;
+  padding:12px 24px; border-radius:50px;
+  font-family:'DM Sans',sans-serif; font-size:0.83rem; font-weight:600;
+  white-space:nowrap; box-shadow:0 6px 24px rgba(67,217,123,.3);
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s; opacity:0;
+}
+.im-toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-title">GPA & CGPA Calculator</div>
+      <div class="brand-sub">BSAI (A) &nbsp;·&nbsp; Academic Tools</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="inst-btn" id="instBtn" onclick="openInstallModal()">
+        <span class="ib-arrow">⬇</span> Install App
+      </button>
+      <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark/light mode">
+        <span class="theme-icon moon">🌙</span>
+        <span class="theme-icon sun">☀️</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- TAB SWITCHER -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-gpa" onclick="switchTab('gpa')">📊 GPA Calculator</button>
+    <button class="tab-btn" id="tab-cgpa" onclick="switchTab('cgpa')">🎓 CGPA Calculator</button>
+  </div>
+
+  <!-- ════ GPA PAGE ════ -->
+  <div class="page active" id="page-gpa">
+    <div class="card">
+      <div class="sec-title">Semester GPA</div>
+      <div class="sec-sub">Enter marks out of 100 and credit hours per subject</div>
+
+      <div class="field-group">
+        <label>Number of Subjects</label>
+        <input type="number" id="subjectCount" min="1" max="20" placeholder="e.g. 6">
+      </div>
+      <button class="btn btn-primary" onclick="createSubjects()">➕ Add Subjects</button>
+
+      <div class="subjects-container" id="subjects"></div>
+
+      <div class="divider" id="calcDivider" style="display:none;"></div>
+      <button class="btn btn-calc" id="calcGpaBtn" style="display:none;" onclick="calculateGPA()">⚡ Calculate GPA</button>
+
+      <div class="result-box" id="gpaResult">
+        <div class="result-label">Your GPA</div>
+        <div class="result-value" id="gpaValue">—</div>
+        <div class="result-grade" id="gpaGrade"></div>
+        <div class="result-msg" id="gpaMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ CGPA PAGE ════ -->
+  <div class="page" id="page-cgpa">
+    <div class="card">
+      <div class="sec-title">Cumulative CGPA</div>
+      <div class="sec-sub">Enter GPA and total credit hours for each semester</div>
+
+      <div class="field-group">
+        <label>Number of Semesters</label>
+        <input type="number" id="semesterCount" min="1" max="12" placeholder="e.g. 4">
+      </div>
+      <button class="btn btn-primary" onclick="createSemesters()">➕ Add Semesters</button>
+
+      <div id="semesterInputs"></div>
+
+      <div class="divider" id="cgpaCalcDivider" style="display:none;"></div>
+      <button class="btn btn-calc" id="calcCgpaBtn" style="display:none;" onclick="calculateCGPA()">⚡ Calculate CGPA</button>
+
+      <div class="result-box cgpa-mode" id="cgpaResult">
+        <div class="result-label">Your CGPA</div>
+        <div class="result-value" id="cgpaValue">—</div>
+        <div class="result-grade" id="cgpaGrade"></div>
+        <div class="result-msg" id="cgpaMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Built with ❤️ by <span>BSAI (A)</span> &nbsp;·&nbsp; Academic Excellence Tools
+  </footer>
+
+</div>
+
+<script>
+// ── THEME ──
+function toggleTheme() {
+  const html = document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+}
+
+// ── TABS ──
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ── GRADE POINT TABLE (exact original logic) ──
+function getGradePoint(marks) {
+  if (marks < 50) return 0.00;
+  if (marks === 50) return 1.00;
+  if (marks === 51) return 1.08;
+  if (marks === 52) return 1.17;
+  if (marks === 53) return 1.25;
+  if (marks === 54) return 1.33;
+  if (marks === 55) return 1.42;
+  if (marks === 56) return 1.50;
+  if (marks === 57) return 1.58;
+  if (marks === 58) return 1.67;
+  if (marks === 59) return 1.75;
+  if (marks === 60) return 1.83;
+  if (marks === 61) return 1.92;
+  if (marks === 62) return 2.00;
+  if (marks === 63) return 2.08;
+  if (marks === 64) return 2.17;
+  if (marks === 65) return 2.25;
+  if (marks === 66) return 2.33;
+  if (marks === 67) return 2.42;
+  if (marks === 68) return 2.50;
+  if (marks === 69) return 2.58;
+  if (marks === 70) return 2.67;
+  if (marks === 71) return 2.75;
+  if (marks === 72) return 2.83;
+  if (marks === 73) return 2.92;
+  if (marks === 74) return 3.00;
+  if (marks === 75) return 3.08;
+  if (marks === 76) return 3.17;
+  if (marks === 77) return 3.25;
+  if (marks === 78) return 3.33;
+  if (marks === 79) return 3.42;
+  if (marks === 80) return 3.50;
+  if (marks === 81) return 3.60;
+  if (marks === 82) return 3.70;
+  if (marks === 83) return 3.80;
+  if (marks === 84) return 3.90;
+  return 4.00;
+}
+
+function getLetterGrade(gpa) {
+  if (gpa >= 3.7) return 'A+';
+  if (gpa >= 3.3) return 'A';
+  if (gpa >= 3.0) return 'A−';
+  if (gpa >= 2.7) return 'B+';
+  if (gpa >= 2.3) return 'B';
+  if (gpa >= 2.0) return 'B−';
+  if (gpa >= 1.7) return 'C+';
+  if (gpa >= 1.3) return 'C';
+  if (gpa >= 1.0) return 'C−';
+  return 'F';
+}
+
+function getMotivation(gpa) {
+  if (gpa >= 3.7) return '🏆 Excellent! You are in the top students of your class!';
+  if (gpa >= 3.0) return '⭐ Great work! Keep pushing for excellence!';
+  if (gpa >= 2.0) return '💪 Good effort — you can reach even higher!';
+  if (gpa >= 1.0) return '📚 Keep studying hard — improvement is possible!';
+  return '❌ Below passing — focus and seek help from your teachers.';
+}
+
+// ── GPA: CREATE SUBJECTS ──
+function createSubjects() {
+  const count = parseInt(document.getElementById('subjectCount').value);
+  if (!count || count < 1 || count > 20) { shakeInput('subjectCount'); return; }
+
+  const container = document.getElementById('subjects');
+  container.innerHTML = '';
+
+  for (let i = 1; i <= count; i++) {
+    const div = document.createElement('div');
+    div.className = 'subject-card';
+    div.style.animationDelay = (i * 0.06) + 's';
+    div.innerHTML = `
+      <div class="subject-num">Subject ${i}</div>
+      <div class="field-group">
+        <label>Marks (0–100)</label>
+        <input type="number" class="marks" min="0" max="100" placeholder="e.g. 75">
+      </div>
+      <div class="field-group">
+        <label>Credit Hours</label>
+        <input type="number" class="credits" min="1" max="6" placeholder="e.g. 3">
+      </div>
+    `;
+    container.appendChild(div);
+  }
+
+  document.getElementById('calcDivider').style.display = 'block';
+  document.getElementById('calcGpaBtn').style.display = 'block';
+  document.getElementById('gpaResult').classList.remove('show');
+}
+
+// ── GPA: CALCULATE ──
+function calculateGPA() {
+  const marks   = document.getElementsByClassName('marks');
+  const credits = document.getElementsByClassName('credits');
+
+  if (marks.length === 0) { alert('Please add subjects first.'); return; }
+
+  let totalPoints = 0, totalCredits = 0;
+  let valid = true;
+
+  for (let i = 0; i < marks.length; i++) {
+    const m = parseInt(marks[i].value);
+    const c = parseInt(credits[i].value);
+    if (isNaN(m) || isNaN(c) || m < 0 || m > 100 || c < 1) { valid = false; break; }
+    totalPoints += getGradePoint(m) * c;
+    totalCredits += c;
+  }
+
+  if (!valid || totalCredits === 0) {
+    alert('Please fill all subject marks (0–100) and credit hours correctly.');
+    return;
+  }
+
+  const gpa = (totalPoints / totalCredits).toFixed(2);
+  const letter = getLetterGrade(parseFloat(gpa));
+  const msg = getMotivation(parseFloat(gpa));
+
+  const resultBox = document.getElementById('gpaResult');
+  resultBox.classList.remove('show');
+  void resultBox.offsetWidth;
+  resultBox.classList.add('show');
+
+  animateNumber('gpaValue', 0, parseFloat(gpa), 800, 2);
+  document.getElementById('gpaGrade').textContent = 'Letter Grade: ' + letter;
+  document.getElementById('gpaMsg').textContent = msg;
+
+  // Original message preserved as easter egg in console
+ // console.log('Mubaraka 🎊 Isi khushi ma CR k leay Treat!');
+}
+
+// ── CGPA: CREATE SEMESTERS ──
+function createSemesters() {
+  const count = parseInt(document.getElementById('semesterCount').value);
+  if (!count || count < 1 || count > 12) { shakeInput('semesterCount'); return; }
+
+  const container = document.getElementById('semesterInputs');
+  container.innerHTML = '';
+
+  for (let i = 1; i <= count; i++) {
+    const div = document.createElement('div');
+    div.className = 'semester-card';
+    div.style.animationDelay = (i * 0.07) + 's';
+    div.innerHTML = `
+      <div class="sem-num">Semester ${i}</div>
+      <div class="sem-grid">
+        <div class="field-group">
+          <label>GPA</label>
+          <input type="number" step="0.01" min="0" max="4" id="gpa${i}" placeholder="e.g. 3.50">
+        </div>
+        <div class="field-group">
+          <label>Credit Hours</label>
+          <input type="number" min="1" id="credits${i}" placeholder="e.g. 18">
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  }
+
+  document.getElementById('cgpaCalcDivider').style.display = 'block';
+  document.getElementById('calcCgpaBtn').style.display = 'block';
+  document.getElementById('cgpaResult').classList.remove('show');
+}
+
+// ── CGPA: CALCULATE (exact original logic) ──
+function calculateCGPA() {
+  const count = parseInt(document.getElementById('semesterCount').value);
+  let totalPoints = 0, totalCredits = 0;
+
+  for (let i = 1; i <= count; i++) {
+    const gpa     = parseFloat(document.getElementById('gpa' + i).value);
+    const credits = parseFloat(document.getElementById('credits' + i).value);
+    if (isNaN(gpa) || isNaN(credits)) {
+      alert('Please fill all GPA and Credit fields for Semester ' + i);
+      return;
+    }
+    totalPoints  += gpa * credits;
+    totalCredits += credits;
+  }
+
+  const cgpa   = (totalPoints / totalCredits).toFixed(2);
+  const letter = getLetterGrade(parseFloat(cgpa));
+  const msg    = getMotivation(parseFloat(cgpa));
+
+  const resultBox = document.getElementById('cgpaResult');
+  resultBox.classList.remove('show');
+  void resultBox.offsetWidth;
+  resultBox.classList.add('show');
+
+  animateNumber('cgpaValue', 0, parseFloat(cgpa), 900, 2);
+  document.getElementById('cgpaGrade').textContent = 'Letter Grade: ' + letter;
+  document.getElementById('cgpaMsg').textContent = msg;
+}
+
+// ── ANIMATED COUNTER ──
+function animateNumber(elId, from, to, duration, decimals) {
+  const el = document.getElementById(elId);
+  const start = performance.now();
+  function update(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = (from + (to - from) * ease).toFixed(decimals);
+    if (p < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ── SHAKE INVALID INPUT ──
+function shakeInput(id) {
+  const el = document.getElementById(id);
+  el.style.borderColor = 'var(--danger)';
+  el.style.animation = 'shake 0.4s ease';
+  setTimeout(() => { el.style.borderColor = ''; el.style.animation = ''; }, 600);
+}
+
+// ── SHAKE KEYFRAME (inject) ──
+const style = document.createElement('style');
+style.textContent = `
+@keyframes shake {
+  0%,100%{ transform:translateX(0); }
+  20%{ transform:translateX(-8px); }
+  40%{ transform:translateX(8px); }
+  60%{ transform:translateX(-5px); }
+  80%{ transform:translateX(5px); }
+}`;
+document.head.appendChild(style);
+
+// ── ENTER KEY SUPPORT ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const activePage = document.querySelector('.page.active').id;
+    if (activePage === 'page-gpa') {
+      const btn = document.getElementById('calcGpaBtn');
+      if (btn.style.display !== 'none') calculateGPA();
+      else createSubjects();
+    } else {
+      const btn = document.getElementById('calcCgpaBtn');
+      if (btn.style.display !== 'none') calculateCGPA();
+      else createSemesters();
+    }
+  }
+});
+</script>
+<!-- ═══════════════════════════════
+     INSTALL MODAL
+═══════════════════════════════ -->
+<div class="im-overlay" id="imOverlay" onclick="imBgClose(event)">
+ <div class="im-box">
+
+  <div class="im-head">
+    <div class="im-title">📲 Install App</div>
+    <button class="im-x" onclick="closeInstallModal()">✕</button>
+  </div>
+  <div class="im-sub">Works like a real app on your home screen. Free. No App Store needed. Auto-updates when site is updated.</div>
+
+  <!-- ONE-TAP (shown only when Chrome fires beforeinstallprompt) -->
+  <div class="im-native" id="imNative">
+    <div class="im-native-txt">
+      ⚡ One-tap install
+      <small>Your browser supports direct install</small>
+    </div>
+    <button class="im-native-btn" onclick="nativeInstall()">Install Now ⬇</button>
+  </div>
+
+  <!-- DEVICE TABS -->
+  <div class="im-tabs">
+    <button class="im-tab on"  onclick="imTab(this,'ac')">🤖 Android Chrome</button>
+    <button class="im-tab"     onclick="imTab(this,'af')">🤖 Android Other</button>
+    <button class="im-tab"     onclick="imTab(this,'ios')">🍎 iPhone/iPad</button>
+    <button class="im-tab"     onclick="imTab(this,'pc')">💻 PC/Mac</button>
+  </div>
+
+  <!-- ANDROID CHROME -->
+  <div class="im-steps on" id="im-ac">
+    <div class="im-step"><div class="im-num">1</div><div class="im-step-txt">Open this page in <b>Google Chrome</b> on Android</div></div>
+    <div class="im-step"><div class="im-num">2</div><div class="im-step-txt">Tap the <b>3-dot menu ⋮</b> (top-right corner)</div></div>
+    <div class="im-step"><div class="im-num">3</div><div class="im-step-txt">Tap <b>"Add to Home screen"</b> or <b>"Install app"</b></div></div>
+    <div class="im-step"><div class="im-num">4</div><div class="im-step-txt">Tap <b>"Install"</b> — app icon appears on home screen ✅</div></div>
+    <div class="im-note"><b>✅ Auto-updates:</b> Every time you open the app with internet, it loads the latest version from the website automatically.</div>
+  </div>
+
+  <!-- ANDROID OTHER -->
+  <div class="im-steps" id="im-af">
+    <div class="im-step"><div class="im-num">1</div><div class="im-step-txt"><b>Samsung Internet:</b> Tap <em>☰ Menu</em> → <b>"Add page to"</b> → <b>"Home screen"</b></div></div>
+    <div class="im-step"><div class="im-num">2</div><div class="im-step-txt"><b>Firefox Android:</b> Tap <em>⋮ Menu</em> → <b>"Install"</b> or <b>"Add to Home Screen"</b></div></div>
+    <div class="im-step"><div class="im-num">3</div><div class="im-step-txt"><b>Opera:</b> Tap the <em>+ icon</em> in address bar → <b>"Add to Home Screen"</b></div></div>
+    <div class="im-step"><div class="im-num">4</div><div class="im-step-txt"><b>Best option:</b> Switch to <b>Google Chrome</b> for the easiest 1-tap install</div></div>
+  </div>
+
+  <!-- iOS SAFARI -->
+  <div class="im-steps" id="im-ios">
+    <div class="im-step"><div class="im-num">1</div><div class="im-step-txt">Open this site in <b>Safari</b> <em>⚠ must be Safari</em> — Chrome on iPhone cannot install PWAs</div></div>
+    <div class="im-step"><div class="im-num">2</div><div class="im-step-txt">Tap the <b>Share button</b> at the bottom: <em>□↑</em> (square with arrow)</div></div>
+    <div class="im-step"><div class="im-num">3</div><div class="im-step-txt">Scroll down the share sheet and tap <b>"Add to Home Screen"</b></div></div>
+    <div class="im-step"><div class="im-num">4</div><div class="im-step-txt">Tap <b>"Add"</b> top-right — app icon on home screen ✅</div></div>
+    <div class="im-note"><b>✅ Auto-updates:</b> App loads from this website — any changes you make on GitHub automatically appear in the app.</div>
+  </div>
+
+  <!-- PC / MAC -->
+  <div class="im-steps" id="im-pc">
+    <div class="im-step"><div class="im-num">1</div><div class="im-step-txt">Open in <b>Google Chrome</b> or <b>Microsoft Edge</b></div></div>
+    <div class="im-step"><div class="im-num">2</div><div class="im-step-txt">Look for <em>⊕ install icon</em> in the address bar (right side) — click it</div></div>
+    <div class="im-step"><div class="im-num">3</div><div class="im-step-txt">Click <b>"Install"</b> — opens as a standalone desktop app</div></div>
+    <div class="im-step"><div class="im-num">4</div><div class="im-step-txt">Or: <em>⋮ Menu</em> → <b>"Save and share"</b> → <b>"Install page as app"</b></div></div>
+  </div>
+
+ </div>
+</div>
+
+<!-- TOAST -->
+<div class="im-toast" id="imToast"></div>
+
+<script>
+// ═══════════════════════════════════════
+//  SERVICE WORKER REGISTRATION
+// ═══════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW failed:', err));
+  });
+}
+
+// ═══════════════════════════════════════
+//  INSTALL PROMPT
+// ═══════════════════════════════════════
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show the one-tap install row inside modal
+  document.getElementById('imNative').classList.add('show');
+  // Also pulse the header button
+  document.getElementById('instBtn').style.boxShadow = '0 0 0 4px rgba(79,142,247,0.3), 0 4px 16px rgba(79,142,247,0.4)';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  markInstalled();
+  showToast('✅ App installed! Open from your home screen.');
+});
+
+function nativeInstall() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted') {
+      markInstalled();
+      closeInstallModal();
+    }
+    deferredPrompt = null;
+  });
+}
+
+function markInstalled() {
+  const btn = document.getElementById('instBtn');
+  btn.classList.add('done');
+  btn.innerHTML = '✅ Installed';
+  btn.onclick = null;
+  btn.style.boxShadow = '';
+}
+
+// ═══════════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════════
+function openInstallModal() {
+  autoSelectTab();
+  document.getElementById('imOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeInstallModal() {
+  document.getElementById('imOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function imBgClose(e) {
+  if (e.target === document.getElementById('imOverlay')) closeInstallModal();
+}
+function imTab(el, id) {
+  document.querySelectorAll('.im-tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.im-steps').forEach(s => s.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('im-' + id).classList.add('on');
+}
+
+function autoSelectTab() {
+  const ua = navigator.userAgent;
+  const isIOS     = /iphone|ipad|ipod/i.test(ua);
+  const isAndroid = /android/i.test(ua);
+  const isChrome  = /chrome/i.test(ua) && !/edg|opr/i.test(ua);
+  const tabs = document.querySelectorAll('.im-tab');
+  const steps = document.querySelectorAll('.im-steps');
+  tabs.forEach(t=>t.classList.remove('on'));
+  steps.forEach(s=>s.classList.remove('on'));
+  let idx = 0; // android chrome default
+  if (isIOS)           idx = 2;
+  else if (!isAndroid) idx = 3;
+  else if (!isChrome)  idx = 1;
+  tabs[idx].classList.add('on');
+  steps[idx].classList.add('on');
+}
+
+// ═══════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('imToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ═══════════════════════════════════════
+//  CHECK IF ALREADY RUNNING AS PWA
+// ═══════════════════════════════════════
+window.addEventListener('load', () => {
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches
+             || navigator.standalone === true;
+  if (isPWA) markInstalled();
+});
+</script>
+</body>
+</html>
